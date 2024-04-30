@@ -4,9 +4,7 @@ import pandas as pd
 import ast
 from datetime import datetime
 import random
-# from streamlit import SessionState
 
-# from streamlit.state.session_state import SessionState
 
 # Connect to the SQLite database
 conn = sqlite3.connect('online_retail123.db')
@@ -48,14 +46,14 @@ c.execute('''CREATE TABLE IF NOT EXISTS address
               email varchar(100),
               zip int,
               full_address text,
-              PRIMARY KEY(address_id, email),
+             
               FOREIGN KEY(zip) REFERENCES zipcode(zip)
               ON DELETE RESTRICT ON UPDATE CASCADE,
               FOREIGN KEY(email) REFERENCES customer(email)
               ON DELETE CASCADE ON UPDATE CASCADE)''')
 
 c.execute('''CREATE TABLE IF NOT EXISTS payment
-             (payment_id int PRIMARY KEY,
+             (payment_id int,
               email varchar(100),
               is_payment_cash boolean NOT NULL,
               credit_card_number char(16) NOT NULL,
@@ -93,7 +91,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS voucher
               discount_price decimal(10, 2))''')
 
 c.execute('''CREATE TABLE IF NOT EXISTS billing
-             (billing_id int PRIMARY KEY,
+             (billing_id int,
               order_id int,
               payment_id int,
               email varchar(100),
@@ -107,9 +105,26 @@ c.execute('''CREATE TABLE IF NOT EXISTS billing
 
 @st.cache_data
 def load_item_data():
-    item_data = pd.read_csv('Items.csv')
-    item_data = item_data.head(5)
+    item_data = pd.read_csv('address.csv').head(100)
+    item_data.to_sql('address', conn, if_exists='append', index=False)
+    item_data = pd.read_csv('items.csv').head(100)
     item_data.to_sql('items', conn, if_exists='append', index=False)
+    item_data = pd.read_csv('billing.csv').head(100)
+    item_data.to_sql('billing', conn, if_exists='append', index=False)
+    item_data = pd.read_csv('customer.csv').head(100)
+    item_data.to_sql('customer', conn, if_exists='append', index=False)
+    item_data = pd.read_csv('item_categories.csv').head(100)
+    item_data.to_sql('item_categories', conn, if_exists='append', index=False)
+    item_data = pd.read_csv('order_item.csv').head(100)
+    item_data.to_sql('order_item', conn, if_exists='append', index=False)
+    item_data = pd.read_csv('orders.csv').head(100)
+    item_data.to_sql('orders', conn, if_exists='append', index=False)
+    item_data = pd.read_csv('payment.csv').head(100)
+    item_data.to_sql('payment', conn, if_exists='append', index=False)
+    item_data = pd.read_csv('uszipcodes.csv').head(100)
+    item_data.to_sql('uszipcodes', conn, if_exists='append', index=False)
+    item_data = pd.read_csv('voucher.csv').head(100)
+    item_data.to_sql('voucher', conn, if_exists='append', index=False)
 
 # Function to fetch items from the database
 @st.cache_data
@@ -134,8 +149,6 @@ def fetch_items_by_category(category):
     return c.fetchall()
 
 def generate_unique_order_id():
-    # Generate a unique order ID based on your requirements
-    # You can use timestamps, random numbers, or any other method to generate unique IDs
     while True:
         order_id = random.randint(100000, 999999)
         c.execute("SELECT COUNT(*) FROM orders WHERE order_id=?", (order_id,))
@@ -144,18 +157,20 @@ def generate_unique_order_id():
             return order_id
         
 def generate_unique_payment_id():
-    # Your implementation to generate a unique payment ID
+   
     while True:
         order_id = random.randint(100000, 999999)
-        c.execute("SELECT COUNT(*) FROM payments WHERE payment6_id=?", (order_id,))
+        c.execute("SELECT COUNT(*) FROM payment WHERE payment_id=?", (order_id,))
         if c.fetchone()[0] == 0:  # If the order_id is not present in the database
             print("jdjhd", order_id)
             return order_id
-    
+
+
 
 def add_order(email, address_id, total_amount, date_of_order, date_of_service, status_of_order):
     # Retrieve email from the address table
     order_id = generate_unique_order_id()
+    st.session_state.order_details = (email, order_id)
     # Insert order details into the orders table
     c.execute("INSERT INTO orders (order_id, email, address_id, total_amount, date_of_order, date_of_service, status_of_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
               (order_id, email, address_id, total_amount, date_of_order, date_of_service, status_of_order))
@@ -164,22 +179,14 @@ def add_order(email, address_id, total_amount, date_of_order, date_of_service, s
     st.success("Order added successfully!")
 
 
-def add_payment(email, is_payment_cash, credit_card_number):
-    # Generate a unique payment ID
-    payment_id = generate_unique_payment_id()
-
-    # Insert the payment into the payment table
-    c.execute("INSERT INTO payment (payment_id, email, is_payment_cash, credit_card_number) VALUES (?, ?, ?, ?)",
-              (payment_id, email, is_payment_cash, credit_card_number))
-    conn.commit()
-
     
 def add_data():
-    st.subheader("Add Customer, Address, and Zip Code Details")
+    st.subheader("Add Customer Details")
 
     # Customer details
     st.subheader("Customer Details")
     email = st.text_input("Email")
+
     password = st.text_input("Password", type="password")
     first_name = st.text_input("First Name")
     last_name = st.text_input("Last Name")
@@ -216,55 +223,169 @@ def add_data():
                   {'zip': zip_code, 'city': city, 'state': state, 'county': county})
         conn.commit()
 
-        st.success("Data added successfully!")
-        order_id = generate_unique_order_id()
+        # st.success("Data added successfully!")
+        # order_id = generate_unique_order_id()
 
         # Get current date and time
         date_of_order = datetime.now().date()
         date_of_service = datetime.now().date()  # Update as needed
-        status_of_order = "Pending"  # Update as needed
-
+        status_of_order = "Successful"  # Update as needed
+        
         # Add order to the orders table
-        add_order(email, address_id, total_amount=190, date_of_order=date_of_order, date_of_service=date_of_service, status_of_order=status_of_order)
+        add_order(email, address_id, total_amount=10.99, date_of_order=date_of_order, date_of_service=date_of_service, status_of_order=status_of_order)
+        # return email
+        
 
 
 # @st.cache_data
 def view_data():
     st.subheader("View Data")
-    table = st.selectbox("Select table to view", ("Items","Customer", "Address", "Zip Code", "orders"))
+    table = st.selectbox("Select table to view", ("Customer","Address","Items","order_item","orders","item_categories", "billing","payment", "zipcode"))
+    if table == "Customer":
+            items_df = pd.read_sql('SELECT * FROM customer', conn)
+            st.write(items_df)
 
-    if table == "Items":
+    elif table == "Address":
+            items_df = pd.read_sql('SELECT * FROM address', conn)
+            st.write(items_df)
+    elif table == "Items":
             items_df = pd.read_sql('SELECT * FROM items', conn)
-            
+            st.write(items_df)
+
+    elif table == "order_item":
+            items_df = pd.read_sql('SELECT * FROM order_item', conn)
             st.write(items_df)
     elif table == "orders":
-            orders_df = pd.read_sql('SELECT * FROM orders', conn)
-            
+            items_df = pd.read_sql('SELECT * FROM orders', conn)
+            st.write(items_df)
+    elif table == "item_categories":
+            items_df = pd.read_sql('SELECT * FROM item_categories', conn)
+            st.write(items_df)
+    
+    elif table == "billing":
+            items_df = pd.read_sql('SELECT * FROM billing', conn)
+            st.write(items_df)
+    elif table == "payment":
+            orders_df = pd.read_sql('SELECT * FROM payment', conn)
             st.write(orders_df)
-    elif table == "Customer":
-            customer_df = pd.read_sql('SELECT * FROM customer', conn)
+    elif table == "zipcode":
+            customer_df = pd.read_sql('SELECT * FROM zipcode', conn)
             
             st.write(customer_df)
-    elif table == "Address":
-        address_df = pd.read_sql('SELECT * FROM address', conn)
-        st.write(address_df)
-
-    elif table == "Zip Code":
-        zipcode_df = pd.read_sql('SELECT * FROM zipcode', conn)
-        st.write(zipcode_df)
     
+    
+def add_payment(email, is_payment_cash, credit_card_number, payment_id):
+    # Generate a unique payment ID
+    
+    # Insert payment details into the payments table
+    c.execute("INSERT INTO payment (payment_id, email, is_payment_cash, credit_card_number) VALUES (?, ?, ?, ?)",
+              (payment_id, email, is_payment_cash, credit_card_number))
+    conn.commit()
+
+    
+
+def payment_page():
+    st.title('Payment')
+   
+    # Retrieve order details from session state
+    email, address_id = st.session_state.order_details
+
+    # Display payment form
+    st.subheader("Payment Details")
+    is_payment_cash = st.checkbox("Payment by Cash")
+    
+    if is_payment_cash:
+        st.write("Payment by cash selected. No credit card number required.")
+        credit_card_number = None  # Set credit card number to None if payment by cash
+    else:
+        credit_card_number = st.text_input("Credit Card Number")
+
+    # Display email (retrieved from order details)
+    st.write(f"Email: {email}")
+
+    # Generate unique payment ID
+    payment_id = generate_unique_payment_id()
+
+    # Display payment ID
+    st.write(f"Payment ID: {payment_id}")
+
+    if st.button("Confirm Payment"):
+        # Add payment details to the database
+        add_payment(email, is_payment_cash, credit_card_number, payment_id)
+        st.success("Payment was successful!")
+
+def generate_unique_billing_id():
+    # Generate a unique billing ID
+    while True:
+        billing_id = random.randint(1000, 9999)  # Adjust range as needed
+        c.execute("SELECT COUNT(*) FROM billing WHERE billing_id=?", (billing_id,))
+        if c.fetchone()[0] == 0:  # If the billing_id is not present in the database
+            return billing_id
+
+def fetch_order_details(email):
+    # Fetch order details based on the email
+    c.execute("SELECT * FROM orders WHERE email=?", (email,))
+    return c.fetchone()  # Assuming only one order per email for simplicity
+
+def add_billing(order_id, payment_id, email, voucher_id, final_amount, status_of_payment):
+    # Insert billing details into the billing table
+    billing_id = generate_unique_billing_id()
+    c.execute("INSERT INTO billing (billing_id, order_id, payment_id, email, voucher_id, final_amount, status_of_payment) VALUES (?, ?, ?, ?, ?, ?, ?)",
+              (billing_id, order_id, payment_id, email, voucher_id, final_amount, status_of_payment))
+    conn.commit()
+def fetch_payment_details(email):
+    # Fetch payment details based on the email
+    c.execute("SELECT * FROM payment WHERE email=?", (email,))
+    return c.fetchone()  # Assuming only one payment per email for simplicity
+
+
+def billing_page():
+    st.title('Billing')
+   
+    # Retrieve order and payment details
+    email, _ = st.session_state.order_details
+    order_details = fetch_order_details(email)
+    payment_details = fetch_payment_details(email)
+
+    # Set default values
+    voucher_id = "No voucher applied"
+    final_amount = 10.99  # Assuming fixed amount for now
+    status_of_payment = "Successful"
+
+    if order_details and payment_details:
+        order_id = order_details[0]
+        payment_id = payment_details[0]
+
+        # Display billing form
+        st.subheader("Billing Details")
+        st.write(f"Email: {email}")
+        st.write(f"Order ID: {order_id}")
+        st.write(f"Payment ID: {payment_id}")
+        st.write(f"Voucher ID: {voucher_id}")
+        st.write(f"Final Amount: {final_amount}")
+        st.write(f"Status of Payment: {status_of_payment}")
+
+        if st.button("Confirm Billing"):
+            # Add billing details to the database
+            add_billing(order_id, payment_id, email, voucher_id, final_amount, status_of_payment)
+            st.success("Billing successful!")
+    else:
+        st.error("No order or payment details found. Please proceed to checkout and payment first.")
 
 # Streamlit app
 def main():
-    st.title('Online Retail Web Application')
+    
+    st.title('Online Retail Application')
     if 'email' not in st.session_state:
         st.session_state.email = None
     
-    
+    if 'order_details' not in st.session_state:
+        st.session_state.order_details = (None, None)
+
     if 'selected_item_ids' not in st.session_state:
         st.session_state.selected_item_ids = []
     
-    menu = ["Home", "Cart", "Checkout",  "payment","View Data",  "Query Operations"]
+    menu = ["Home", "Cart", "Checkout",  "Payment", "Billing Details","View Data",  "Query Operations"]
     page = st.sidebar.selectbox("Menu", menu)
     # page = st.sidebar.radio("Navigation", ["Home", "Cart", "Checkout"])
 
@@ -278,24 +399,24 @@ def main():
         categories = fetch_categories()
 
         # Display category select box
-        selected_category = st.selectbox("Select a category:", categories)
+        selected_category = st.selectbox("Select an Item category:", categories)
 
         # Fetch items based on selected category
         items = fetch_items_by_category(selected_category)
 
         # Display radio buttons for each item
-        selected_item_id = st.radio("Choose an item:", [f"{item}" for item in items])
+        selected_item_id = st.radio("Choose an item:", [f"{item}" for item in items[:50]])
 
         # Logic to select the item
         if st.button("Add to Cart"):
             if selected_item_id:
                 st.session_state.selected_item_ids.append(selected_item_id)
-                st.success(f"Item '{selected_item_id}' added to cart!")
+                st.success(f"Item added to cart!")
             else:
                 st.warning("Please select an item.")
 
     elif page == "Cart":
-        st.header("Your Cart")
+        st.header("My Cart")
         if not st.session_state.selected_item_ids:
             st.write("Your cart is empty.")
         else:
@@ -308,14 +429,25 @@ def main():
             if cart_items_data:
                 st.write("Selected items:")
                 st.table(pd.DataFrame(cart_items_data, columns=["Item ID", "Item Name", "Category", "Manufacture Date", "Expiry Date", "Price"]))
+                
             else:
                 st.write("No items found in the cart.")
         
     elif page == "Checkout":
         add_data()
-        # Logic for user data collection and payment details
-    # elif page== 'orders':
-    #     add_order()
+        # st.session_state.email = email 
+
+    elif page == "Payment":
+        
+
+        payment_page()
+        # if st.session_state.email is not None:
+        #         payment_page(st.session_state.email)  # Pass the email to the payment_page()
+        # else:
+        #     st.error("No email found. Please proceed to checkout first.")
+        
+    elif page == "Billing Details":
+        billing_page()
 
     elif page == "View Data":
         view_data()
